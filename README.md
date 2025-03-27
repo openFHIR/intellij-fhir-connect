@@ -1,4 +1,3 @@
-![openFHIR Logo](https://plugins.jetbrains.com/files/26927/704824/icon/default.svg)
 
 # FHIRConnect plugin for IntelliJ
 <!-- Plugin description -->
@@ -20,3 +19,6 @@ Plugin available is available here: https://plugins.jetbrains.com/plugin/26927-f
 - FHIRPath autocompletion
 - Flat-path to AQL automatic conversion
 
+-----
+
+[![openFHIR Logo](src/main/resources/openfhir.png)](https://open-fhir.com)
