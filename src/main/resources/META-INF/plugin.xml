@@ -1,0 +1,15 @@
+<idea-plugin>
+    <id>com.openfhir</id>
+    <name>FHIRConnect</name>
+    <description>Simplifies writing and navigating through FHIRConnect mapping and context files.</description>
+    <version>1.0</version>
+    <vendor email="info@open-fhir.com">openFHIR</vendor>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.yaml</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <gotoDeclarationHandler implementation="com.openfhir.fhirconnect.YamlGotoDeclarationHandler"/>
+        <editorFactoryMouseListener implementation="com.openfhir.fhirconnect.YamlEditorMouseListener"/>
+    </extensions>
+</idea-plugin>
