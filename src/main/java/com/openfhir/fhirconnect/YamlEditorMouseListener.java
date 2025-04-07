@@ -1,5 +1,7 @@
 package com.openfhir.fhirconnect;
 
+import com.intellij.openapi.application.ModalityState;
+import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.LogicalPosition;
 import com.intellij.openapi.editor.event.EditorMouseEvent;
@@ -18,6 +20,7 @@ import com.intellij.openapi.vfs.VirtualFileVisitor;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.util.PsiTreeUtil;
+import com.intellij.util.concurrency.AppExecutorUtil;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -89,41 +92,49 @@ public class YamlEditorMouseListener implements EditorMouseListener {
 
         logger.debug("Clicked on key: " + keyText + ", value: " + valueText + ", word: " + wordClicked);
 
-        final List<RelevantFile> relevantFiles;
-        if (NAME.equals(keyText)
-                && ((YAMLKeyValue) yamlKeyValue.getParent().getParent()).getKey().getText().equals(METADATA)) {
-            // if metadata.name was clicked, then we'll find all context .yamls where this model mapping is referenced and all model mappers where it's slotArchetype or extends
-            relevantFiles = findRelevantYamlFiles(project, currentFilePath, wordClicked,
-                                                  Set.of(CLICKED_ON.METADATA_NAME));
-        } else {
-            relevantFiles = findRelevantYamlFiles(project, currentFilePath, wordClicked,
-                                                  Set.of(CLICKED_ON.SLOT_ARCHETYPE, CLICKED_ON.ARCHETYPES, CLICKED_ON.START));
-        }
 
-        if (relevantFiles.size() == 1) {
-            locateAndOpenAnchor(project, relevantFiles.get(0).getVirtualFile(), wordClicked,
-                                relevantFiles.get(0).getRegex());
-        } else if (relevantFiles.size() > 1) {
-            // More than one file found, show a popup list
-            JBPopupFactory.getInstance().createListPopup(new BaseListPopupStep<>(
-                    "Multiple Destinations Found, Select One",
-                    relevantFiles.stream().map(rf -> rf.getVirtualFile()).collect(
-                            Collectors.toList())) {
-                @Override
-                public String getTextFor(VirtualFile file) {
-                    return file.getPresentableName(); // Show the file path in the popup
-                }
+        ReadAction.nonBlocking(() -> {
+                    final List<RelevantFile> relevantFiles;
+                    if (NAME.equals(keyText)
+                            && ((YAMLKeyValue) yamlKeyValue.getParent().getParent()).getKey().getText().equals(METADATA)) {
+                        // if metadata.name was clicked, then we'll find all context .yamls where this model mapping is referenced and all model mappers where it's slotArchetype or extends
+                        relevantFiles = findRelevantYamlFiles(project, currentFilePath, wordClicked,
+                                                              Set.of(CLICKED_ON.METADATA_NAME));
+                    } else {
+                        relevantFiles = findRelevantYamlFiles(project, currentFilePath, wordClicked,
+                                                              Set.of(CLICKED_ON.SLOT_ARCHETYPE, CLICKED_ON.ARCHETYPES,
+                                                                     CLICKED_ON.START));
+                    }
+                    return relevantFiles;
+                })
+                .finishOnUiThread(ModalityState.defaultModalityState(), relevantFiles -> {
+                    if (relevantFiles.size() == 1) {
+                        locateAndOpenAnchor(project, relevantFiles.get(0).getVirtualFile(), wordClicked,
+                                            relevantFiles.get(0).getRegex());
+                    } else if (relevantFiles.size() > 1) {
+                        // More than one file found, show a popup list
+                        JBPopupFactory.getInstance().createListPopup(new BaseListPopupStep<>(
+                                "Multiple Destinations Found, Select One",
+                                relevantFiles.stream().map(rf -> rf.getVirtualFile()).collect(
+                                        Collectors.toList())) {
+                            @Override
+                            public String getTextFor(VirtualFile file) {
+                                return file.getPresentableName(); // Show the file path in the popup
+                            }
 
-                @Override
-                public PopupStep<?> onChosen(VirtualFile selectedFile, boolean finalChoice) {
-                    final String regex = relevantFiles.stream()
-                            .filter(rf -> rf.getVirtualFile().getName().equals(selectedFile.getName()))
-                            .map(rf -> rf.getRegex()).findAny().orElse(null);
-                    locateAndOpenAnchor(project, selectedFile, wordClicked, regex);
-                    return FINAL_CHOICE;
-                }
-            }).showInFocusCenter();
-        }
+                            @Override
+                            public PopupStep<?> onChosen(VirtualFile selectedFile, boolean finalChoice) {
+                                final String regex = relevantFiles.stream()
+                                        .filter(rf -> rf.getVirtualFile().getName().equals(selectedFile.getName()))
+                                        .map(rf -> rf.getRegex()).findAny().orElse(null);
+                                locateAndOpenAnchor(project, selectedFile, wordClicked, regex);
+                                return FINAL_CHOICE;
+                            }
+                        }).showInFocusCenter();
+                    }
+                })
+                .submit(AppExecutorUtil.getAppExecutorService());
+
     }
 
     /**
@@ -133,9 +144,9 @@ public class YamlEditorMouseListener implements EditorMouseListener {
      * @return The matching VirtualFile if found, otherwise null.
      */
     public List<RelevantFile> findRelevantYamlFiles(final Project project,
-                                                           final String currentFile,
-                                                           final String wordClicked,
-                                                           final Set<CLICKED_ON> clickedOn) {
+                                                    final String currentFile,
+                                                    String wordClicked,
+                                                    final Set<CLICKED_ON> clickedOn) {
         VirtualFile projectBaseDir = project.getBaseDir(); // Get root directory of the project
 
         if (projectBaseDir == null) {
@@ -148,6 +159,13 @@ public class YamlEditorMouseListener implements EditorMouseListener {
         VfsUtil.visitChildrenRecursively(projectBaseDir, new VirtualFileVisitor<Void>() {
             @Override
             public boolean visitFile(VirtualFile file) {
+                if (file.isDirectory()
+                        && ("target".equals(file.getName())
+                        || "build".equals(file.getName())
+                        || "_build".equals(file.getName()))) {
+                    return false; // skip target directory
+                }
+
                 if (!file.isDirectory()
                         && isYamlFile(file)) {
                     yamlFiles.add(file);
@@ -162,9 +180,17 @@ public class YamlEditorMouseListener implements EditorMouseListener {
             if (yamlFile.getPath().equals(currentFile)) {
                 continue;
             }
+            logger.warn("Reading file content: " + yamlFile.getPath());
             String content = readFileContent(yamlFile);
             if (content != null) {
+                wordClicked = wordClicked.toLowerCase();
+                content = content.toLowerCase()
+                        .replace(String.format("\"%s\"", wordClicked), wordClicked)
+                        .replace(" ", "");
 
+                boolean isContextFile = content.contains("text:context");
+
+                // regex for care position after clicking
                 final String metadataNameRegex =
                         "metadata:\\s*\\n(?:\\s+.*\\n)*?\\s*name:\\s*[\"']?(" + wordClicked + ")[\"']?";
                 final String slotRegex = "slotArchetype:\\s*[\"']?(" + wordClicked + ")[\"']?";
@@ -176,29 +202,39 @@ public class YamlEditorMouseListener implements EditorMouseListener {
                 final String extendsRegex =
                         "spec:\\s*\\n(?:\\s+.*\\n)*?\\s*extends:\\s*[\"']?(" + wordClicked + ")[\"']?";
 
+
+                final String slotString = String.format("slotArchetype:%s", wordClicked);
+                final String startsString = String.format("starts:%s", wordClicked);
+                final String extendsString = String.format("extends:%s", wordClicked);
+                final String archetypesString = String.format("-%s", wordClicked);
+                final String extensionsString = String.format("-%s", wordClicked);
+
+
                 if (clickedOn.contains(CLICKED_ON.SLOT_ARCHETYPE)
                         || clickedOn.contains(CLICKED_ON.ARCHETYPES)
                         || clickedOn.contains(CLICKED_ON.START)) {
                     if (checkRegex(content, metadataNameRegex)) {
                         relevantFiles.add(new RelevantFile(metadataNameRegex, yamlFile));
-                    }else if (checkRegex(content, slotStartsRegex)) {
+                    } else if (checkStringContains(content, startsString)) {
                         relevantFiles.add(new RelevantFile(slotStartsRegex, yamlFile));
                     }
                 }
 
                 if (clickedOn.contains(CLICKED_ON.METADATA_NAME)) {
-                    if (checkRegex(content, slotRegex)) {
+                    if (checkStringContains(content, slotString)) {
                         relevantFiles.add(new RelevantFile(slotRegex, yamlFile));
-                    } else if (checkRegex(content, contextArchetypesRegex)) {
+                    } else if (checkStringContains(content, archetypesString)) {
                         relevantFiles.add(new RelevantFile(contextArchetypesRegex, yamlFile));
-                    } else if (checkRegex(content, extendsRegex)) {
+                    } else if (checkStringContains(content, extendsString)) {
                         relevantFiles.add(new RelevantFile(extendsRegex, yamlFile));
-                    } else if (checkRegex(content, slotStartsRegex)) {
+                    } else if (checkStringContains(content, startsString)) {
                         relevantFiles.add(new RelevantFile(slotStartsRegex, yamlFile));
-                    } else if (checkRegex(content, contextExtensionsRegex)) {
+                    } else if (checkStringContains(content, extensionsString)) {
                         relevantFiles.add(new RelevantFile(contextExtensionsRegex, yamlFile));
                     }
                 }
+            } else {
+                System.out.println();
             }
         }
 
@@ -209,6 +245,10 @@ public class YamlEditorMouseListener implements EditorMouseListener {
         var match = Pattern.compile(regex, Pattern.MULTILINE
         ).matcher(content);
         return match.find();
+    }
+
+    private static boolean checkStringContains(final String content, final String toContain) {
+        return content.contains(toContain);
     }
 
     /**
@@ -233,10 +273,11 @@ public class YamlEditorMouseListener implements EditorMouseListener {
      * @param file The file to read.
      * @return The content as a String, or null if an error occurs.
      */
-    private static String readFileContent(VirtualFile file) {
+    private String readFileContent(VirtualFile file) {
         try {
             return new String(file.contentsToByteArray(), StandardCharsets.UTF_8);
         } catch (IOException e) {
+            logger.error("Error trying to open file " + file.getName() + " with err ", e);
             return null;
         }
     }
@@ -244,8 +285,12 @@ public class YamlEditorMouseListener implements EditorMouseListener {
     private boolean locateAndOpenAnchor(Project project, VirtualFile file, String anchorName, String regex) {
         try {
             String content = new String(file.contentsToByteArray(), StandardCharsets.UTF_8);
+            content = content.toLowerCase();
 
             Position position = findExactWordPosition(content, regex, anchorName);
+            if(position == null) {
+                return false;
+            }
             openFileAtPosition(project, file, position.line, position.character);
 
             logger.info("Anchor '" + anchorName + "' found in " + file.getPath() + " at line " + position.line

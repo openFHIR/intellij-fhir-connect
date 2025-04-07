@@ -14,6 +14,16 @@
 
 ### Security
 
+## [1.0.1]
+
+### Changed
+
+- upper version of compatibility set to 243.*
+
+### Fixed
+
+- Performance issues resolved
+
 ## [1.0.0] - YYYY-MM-DD
 
 ### Added
