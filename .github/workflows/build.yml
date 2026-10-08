@@ -38,7 +38,7 @@ jobs:
 
       - name: Upload plugin zip
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: plugin
           path: build/distributions/*.zip
@@ -46,7 +46,7 @@ jobs:
 
       - name: Upload verifier report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: plugin-verifier-report
           path: build/reports/pluginVerifier
@@ -54,7 +54,7 @@ jobs:
 
       - name: Upload test report
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: test-report
           path: build/reports/tests/test
