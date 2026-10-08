@@ -1,0 +1,18 @@
+grammar: FHIRConnect/v1.0.0
+type: context
+metadata:
+  name: KDS_sub.context
+  version: 0.0.1a
+spec:
+  system: FHIR
+  version: R4
+
+context:
+  profile:
+    url: "https://www.medizininformatik-initiative.de/fhir/core/modul-labor/StructureDefinition/ServiceRequestLab"
+    version: "2025.0.0"
+  template:
+    id: "KDS_Laborauftrag"
+  archetypes:
+    - "INSTRUCTION.service_request.v1"
+  start: "INSTRUCTION.service_request.v1"

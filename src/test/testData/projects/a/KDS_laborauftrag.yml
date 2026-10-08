@@ -1,0 +1,37 @@
+grammar: FHIRConnect/v1.0.0
+type: extension
+metadata:
+  name: KDS_laborauftrag
+  version: 0.0.1-alpha
+spec:
+  system: FHIR
+  version: R4
+  extends: INSTRUCTION.service_request.v1
+
+mappings:
+  - name: "compositionMapping"
+    extension: "add"
+    with:
+      fhir: "$resource"
+      openehr: "$composition"
+    slotArchetype: "COMPOSITION.request.v1.ServiceRequest"
+
+  - name: "specimen"
+    extension: "add"
+    with:
+      fhir: "$resource.specimen"
+      openehr: "$archetype/activities[at0001]/description[at0009]/items[openEHR-EHR-CLUSTER.specimen.v1]"
+    followedBy:
+      mappings:
+        - name: "caseIdentification"
+          with:
+            fhir: "$fhirRoot"
+            openehr: "$composition/context/other_context[at0001]/items[openEHR-EHR-CLUSTER.case_identification.v0]"
+          slotArchetype: "CLUSTER.case_identification.v0"
+
+  - name: "subContext"
+    extension: "add"
+    with:
+      fhir: "$resource.basedOn"
+      openehr: "$archetype/activities[at0001]"
+    slotContext: "KDS_sub.context"

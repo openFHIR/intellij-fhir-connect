@@ -1,0 +1,31 @@
+grammar: FHIRConnect/v1.0.0
+type: extension
+metadata:
+  name: KDS_composition
+  version: 0.0.1-alpha
+spec:
+  system: FHIR
+  version: R4
+  extends: COMPOSITION.request.v1.ServiceRequest
+
+mappings:
+  - name: "fallIdentifikationIdentifier"
+    extension: "add"
+    with:
+      fhir: "$resource.encounter.ofType(Reference).identifier"
+      openehr: "$composition/context/other_context[at0001]/items[openEHR-EHR-CLUSTER.case_identification.v0]"
+    slotArchetype: "CLUSTER.case_identification.v0"
+
+  - name: "fallIdentifikationReference"
+    extension: "add"
+    with:
+      openehr: "$reference"
+      fhir: "$resource.encounter"
+    reference:
+      resourceType: "Encounter"
+      mappings:
+        - name: "identifierInReference"
+          with:
+            fhir: "$fhirRoot.identifier"
+            openehr: "$composition/context/other_context[at0001]/items[openEHR-EHR-CLUSTER.case_identification.v0]"
+          slotArchetype: "CLUSTER.case_identification.v0"

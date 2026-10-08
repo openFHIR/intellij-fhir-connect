@@ -1,0 +1,17 @@
+grammar: FHIRConnect/v1.0.0
+type: extension
+metadata:
+  name: KDS_composition
+  version: 0.0.2-alpha
+spec:
+  system: FHIR
+  version: R4
+  extends: COMPOSITION.request.v1.ServiceRequest
+
+mappings:
+  - name: "serviceRequest"
+    extension: "add"
+    with:
+      fhir: "$resource"
+      openehr: "$composition/content[openEHR-EHR-INSTRUCTION.service_request.v1]"
+    slotArchetype: INSTRUCTION.service_request.v1

@@ -1,0 +1,13 @@
+# Not a FHIRConnect file: no grammar key. Must be ignored by the plugin.
+type: model
+metadata:
+  name: CLUSTER.case_identification.v0
+spec:
+  extends: INSTRUCTION.service_request.v1
+context:
+  archetypes:
+    - CLUSTER.case_identification.v0
+  start: INSTRUCTION.service_request.v1
+mappings:
+  - name: "x"
+    slotArchetype: "CLUSTER.case_identification.v0"

@@ -1,15 +1,36 @@
+<!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
+    <!-- Keep the id stable: changing it would orphan existing Marketplace installations. -->
     <id>com.openfhir</id>
     <name>FHIRConnect</name>
-    <description>Simplifies writing and navigating through FHIRConnect mapping and context files.</description>
-    <version>1.0</version>
-    <vendor email="info@open-fhir.com">openFHIR</vendor>
+    <!-- version, description, change-notes and vendor are patched by Gradle (see build.gradle.kts). -->
+    <vendor>openFHIR</vendor>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>org.jetbrains.plugins.yaml</depends>
 
+    <resource-bundle>messages.FhirConnectBundle</resource-bundle>
+
     <extensions defaultExtensionNs="com.intellij">
-        <gotoDeclarationHandler implementation="com.openfhir.fhirconnect.YamlGotoDeclarationHandler"/>
-        <editorFactoryMouseListener implementation="com.openfhir.fhirconnect.YamlEditorMouseListener"/>
+        <!-- Indexes: mapper names and the names referenced by each FHIRConnect file. -->
+        <fileBasedIndex implementation="com.openfhir.fhirconnect.index.FhirConnectNameIndex"/>
+        <fileBasedIndex implementation="com.openfhir.fhirconnect.index.FhirConnectReferenceIndex"/>
+
+        <!-- Navigation: Ctrl+click / Ctrl+B on reference sites. -->
+        <psi.referenceContributor language="yaml"
+                                  implementation="com.openfhir.fhirconnect.navigation.FhirConnectReferenceContributor"/>
+
+        <!-- Declaration target for metadata.name: enables Find Usages, Rename and Show Usages on the name. -->
+        <pom.declarationSearcher implementation="com.openfhir.fhirconnect.navigation.FhirConnectDeclarationSearcher"/>
+        <referencesSearch implementation="com.openfhir.fhirconnect.navigation.FhirConnectReferenceSearcher"/>
+        <lang.findUsagesProvider language="yaml" order="first"
+                                 implementationClass="com.openfhir.fhirconnect.navigation.FhirConnectFindUsagesProvider"/>
+        <gotoDeclarationHandler implementation="com.openfhir.fhirconnect.navigation.FhirConnectUsagesGotoHandler"/>
+        <renameInputValidator implementation="com.openfhir.fhirconnect.navigation.FhirConnectRenameInputValidator"/>
+        <elementDescriptionProvider implementation="com.openfhir.fhirconnect.navigation.FhirConnectDescriptionProvider"/>
+
+        <!-- Completion of mapper names at reference sites. -->
+        <completion.contributor language="yaml"
+                                implementationClass="com.openfhir.fhirconnect.completion.FhirConnectNameCompletionContributor"/>
     </extensions>
 </idea-plugin>

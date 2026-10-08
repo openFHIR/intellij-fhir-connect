@@ -1,0 +1,19 @@
+grammar: FHIRConnect/v1.0.0
+type: model
+metadata:
+  name: "COMPOSITION.request.v1.ServiceRequest"
+  version: 0.0.1-alpha
+spec:
+  system: FHIR
+  version: R4
+  openEhrConfig:
+    archetype: openEHR-EHR-COMPOSITION.request.v1
+    revision: 1.0.0
+  fhirConfig:
+    structureDefinition: http://hl7.org/fhir/StructureDefinition/ServiceRequest
+
+mappings:
+  - name: "composer"
+    with:
+      fhir: "$resource.requester"
+      openehr: "$composition/composer"
