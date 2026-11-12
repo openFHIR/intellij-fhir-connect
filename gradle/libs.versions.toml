@@ -1,6 +1,6 @@
 [versions]
 # https://github.com/JetBrains/intellij-platform-gradle-plugin/releases
-intellijPlatform = "2.19.0"
+intellijPlatform = "2.20.0"
 # https://github.com/JetBrains/gradle-changelog-plugin/releases
 changelog = "2.5.0"
 junit = "4.13.2"
